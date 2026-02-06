@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 
 //middleware
@@ -21,8 +21,33 @@ const client = new MongoClient(uri, {
 });
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    const db = client.db("book_courier_db");
+    const usersCollection = db.collection("users");
+    // users api
+    app.get("users", async (req, res) => {
+      const user = req.body;
+      const newUser = { ...user, role: "user", createdAt: new Date() };
+      const result = await usersCollection.insertOne(newUser);
+      res.send(result);
+    });
+    // admin api
+    app.patch("users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await usersCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { role: "admin" } },
+      );
+      res.send(result);
+    });
+    // librarian api
+    app.patch("users/librarian/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await usersCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { role: "librarian" } },
+      );
+      res.send(res);
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
