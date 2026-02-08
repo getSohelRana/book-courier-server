@@ -23,15 +23,61 @@ async function run() {
   try {
     const db = client.db("book_courier_db");
     const usersCollection = db.collection("users");
-    // users api
-    app.get("users", async (req, res) => {
-      const user = req.body;
-      const newUser = { ...user, role: "user", createdAt: new Date() };
-      const result = await usersCollection.insertOne(newUser);
-      res.send(result);
+    // POST : users api
+    app.post("/users", async (req, res) => {
+      try {
+        const user = req.body;
+        const { email } = user;
+
+        if (!email) {
+          return res.status(400).send({
+            success: false,
+            message: "Email is required",
+          });
+        }
+
+        const existingUser = await usersCollection.findOne({ email });
+
+        if (existingUser) {
+          return res.status(409).send({
+            success: false,
+            message: "User already registered",
+          });
+        }
+
+        const newUser = {
+          ...user,
+          role: "user",
+          createdAt: new Date(),
+        };
+
+        const result = await usersCollection.insertOne(newUser);
+
+        res.status(201).send({
+          success: true,
+          message: "User created successfully",
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: "Failed to create user",
+        });
+      }
     });
+
+    //GET : all users
+    app.get("/users", async (req, res) => {
+      try {
+        const users = await usersCollection.find().toArray();
+        res.send(users);
+      } catch (error) {
+        res.status(500).send({ message: "Failed to get users" });
+      }
+    });
+
     // admin api
-    app.patch("users/admin/:id", async (req, res) => {
+    app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       const result = await usersCollection.updateOne(
         { _id: new ObjectId(id) },
@@ -39,14 +85,20 @@ async function run() {
       );
       res.send(result);
     });
+
     // librarian api
-    app.patch("users/librarian/:id", async (req, res) => {
+    app.patch("/users/librarian/:id", async (req, res) => {
       const id = req.params.id;
       const result = await usersCollection.updateOne(
         { _id: new ObjectId(id) },
         { $set: { role: "librarian" } },
       );
-      res.send(res);
+      res.send(result);
+    });
+    // Get all  users by role base
+    app.get("/users/role/:email", async (req, res) => {
+      const user = await usersCollection.findOne({ email: req.params.email });
+      res.send({ role: user?.role });
     });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
