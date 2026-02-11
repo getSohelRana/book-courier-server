@@ -127,40 +127,114 @@ async function run() {
 
     // librarian api goes here
     //POST : books
-    app.post("/all-books", async (req, res) => {
+  app.post("/all-books", async (req, res) => {
+    try {
+      const {
+        bookName,
+        authorName,
+        category,
+        description,
+        pages,
+        price,
+        publish,
+        quantity,
+        coverImg,
+        addedBy,
+      } = req.body;
+
+      // check duplicate 
+      const toLowerCaseBookName = bookName.trim().toLowerCase();
+      const toLowerCaseAuthorName = authorName.trim().toLowerCase();
+
+      // 🔹 Check existing book
+      const existingBook = await booksCollection.findOne({
+        bookName: toLowerCaseBookName,
+        authorName: toLowerCaseAuthorName,
+      });
+
+      if (existingBook) {
+        // If exists => increase quantity
+        const updateResult = await booksCollection.updateOne(
+          { _id: existingBook._id },
+          {
+            $inc: { quantity: Number(quantity) },
+            $set: { updatedAt: new Date() },
+            $push: {
+              stockHistory: {
+                addedBy,
+                quantity: Number(quantity),
+                date: new Date(),
+              },
+            },
+          },
+        );
+
+        return res.status(200).send({
+          message: "Book already exists. Quantity updated.",
+          updated: true,
+          updateResult,
+        });
+      }
+
+      //  If not exists > insert new book
+      const newBook = {
+        bookName: toLowerCaseBookName,
+        authorName: toLowerCaseAuthorName,
+        category,
+        description,
+        pages: Number(pages),
+        price: Number(price),
+        publish,
+        quantity: Number(quantity),
+        coverImg,
+        addedBy,
+        stockHistory: [
+          {
+            quantity: Number(quantity),
+            date: new Date(),
+          },
+        ],
+        createdAt: new Date(),
+      };
+
+      const result = await booksCollection.insertOne(newBook);
+
+      res.status(201).send({
+        message: "New book added successfully",
+        inserted: true,
+        result,
+      });
+    } catch (error) {
+      console.error("Add Book Error:", error);
+      res.status(500).send({
+        message: "Failed to add book",
+        error: error.message,
+      });
+    }
+  });
+
+
+
+    // GET : all books
+    app.get("/all-books", async (req, res) => {
       try {
-        const all_books = req.body;
-        const result = await booksCollection.insertOne(all_books);
-        res.status(201).json({
+        const all_books_data = await booksCollection
+          .find()
+          .sort({ createdAt: -1 })
+          .toArray();
+        res.status(200).json({
           success: true,
-          message: "Book added successfully",
-          data: result,
+          data: all_books_data,
         });
       } catch (error) {
-        console.error(error);
-        return res.status(500).json({
+        console.log(error);
+        res.status(500).json({
           success: false,
-          message: error.message || "Internal Server Error",
+          message: "Fail to fetch books",
+          error: error.message,
         });
       }
     });
-    // GET : all books
-    app.get('/all-books', async (req,res)=>{
-      try{
-        const all_books_data = await booksCollection.find().sort({createdAt : -1}).toArray();
-        res.status(200).json({
-          success : true,
-          data : all_books_data
-        })
-      } catch(error){
-        console.log(error);
-        res.status(500).json({
-          success : false,
-          message : "Fail to fetch books",
-          error : error.message
-        })
-      }
-    })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
