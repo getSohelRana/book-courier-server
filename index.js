@@ -23,6 +23,7 @@ async function run() {
   try {
     const db = client.db("book_courier_db");
     const usersCollection = db.collection("users");
+    const booksCollection = db.collection("books");
     // POST : users api
     app.post("/users", async (req, res) => {
       try {
@@ -76,7 +77,7 @@ async function run() {
       }
     });
 
-    // admin api
+    // make admin api
     app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       const result = await usersCollection.updateOne(
@@ -86,7 +87,7 @@ async function run() {
       res.send(result);
     });
 
-    // librarian api
+    //make librarian api
     app.patch("/users/librarian/:id", async (req, res) => {
       const id = req.params.id;
       const result = await usersCollection.updateOne(
@@ -97,9 +98,69 @@ async function run() {
     });
     // Get all  users by role base
     app.get("/users/role/:email", async (req, res) => {
-      const user = await usersCollection.findOne({ email: req.params.email });
-      res.send({ role: user?.role });
+      try {
+        const email = req.params.email;
+        if (!email) {
+          return res
+            .status(400)
+            .send({ success: false, message: "Email is required" });
+        }
+
+        const user = await usersCollection.findOne({ email });
+
+        if (!user) {
+          return res
+            .status(404)
+            .send({ success: false, message: "User not found", role: null });
+        }
+
+        res.send({ success: true, role: user.role });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to fetch user role",
+          role: null,
+        });
+      }
     });
+
+    // librarian api goes here
+    //POST : books
+    app.post("/all-books", async (req, res) => {
+      try {
+        const all_books = req.body;
+        const result = await booksCollection.insertOne(all_books);
+        res.status(201).json({
+          success: true,
+          message: "Book added successfully",
+          data: result,
+        });
+      } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+          success: false,
+          message: error.message || "Internal Server Error",
+        });
+      }
+    });
+    // GET : all books
+    app.get('/all-books', async (req,res)=>{
+      try{
+        const all_books_data = await booksCollection.find().sort({createdAt : -1}).toArray();
+        res.status(200).json({
+          success : true,
+          data : all_books_data
+        })
+      } catch(error){
+        console.log(error);
+        res.status(500).json({
+          success : false,
+          message : "Fail to fetch books",
+          error : error.message
+        })
+      }
+    })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
