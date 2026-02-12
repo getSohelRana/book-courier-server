@@ -67,6 +67,33 @@ async function run() {
       }
     });
 
+    // get single books by id
+    app.get("/book-details/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const book_details = await booksCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        if (!book_details) {
+          return res.status(404).json({
+            success: false,
+            message: "Book not found",
+          });
+        }
+        res.status(200).json({
+          success: true,
+          data: book_details,
+        });
+      } catch (error) {
+        console.error("Get Book Error:", error);
+
+        res.status(500).json({
+          success: false,
+          message: "Something went wrong",
+        });
+      }
+    });
+
     //GET : all users
     app.get("/users", async (req, res) => {
       try {
@@ -127,93 +154,91 @@ async function run() {
 
     // librarian api goes here
     //POST : books
-  app.post("/all-books", async (req, res) => {
-    try {
-      const {
-        bookName,
-        authorName,
-        category,
-        description,
-        pages,
-        price,
-        publish,
-        quantity,
-        coverImg,
-        addedBy,
-      } = req.body;
+    app.post("/all-books", async (req, res) => {
+      try {
+        const {
+          bookName,
+          authorName,
+          category,
+          description,
+          pages,
+          price,
+          publish,
+          quantity,
+          coverImg,
+          addedBy,
+        } = req.body;
 
-      // check duplicate 
-      const toLowerCaseBookName = bookName.trim().toLowerCase();
-      const toLowerCaseAuthorName = authorName.trim().toLowerCase();
+        // check duplicate
+        const toLowerCaseBookName = bookName.trim().toLowerCase();
+        const toLowerCaseAuthorName = authorName.trim().toLowerCase();
 
-      // 🔹 Check existing book
-      const existingBook = await booksCollection.findOne({
-        bookName: toLowerCaseBookName,
-        authorName: toLowerCaseAuthorName,
-      });
+        // 🔹 Check existing book
+        const existingBook = await booksCollection.findOne({
+          bookName: toLowerCaseBookName,
+          authorName: toLowerCaseAuthorName,
+        });
 
-      if (existingBook) {
-        // If exists => increase quantity
-        const updateResult = await booksCollection.updateOne(
-          { _id: existingBook._id },
-          {
-            $inc: { quantity: Number(quantity) },
-            $set: { updatedAt: new Date() },
-            $push: {
-              stockHistory: {
-                addedBy,
-                quantity: Number(quantity),
-                date: new Date(),
+        if (existingBook) {
+          // If exists => increase quantity
+          const updateResult = await booksCollection.updateOne(
+            { _id: existingBook._id },
+            {
+              $inc: { quantity: Number(quantity) },
+              $set: { updatedAt: new Date() },
+              $push: {
+                stockHistory: {
+                  addedBy,
+                  quantity: Number(quantity),
+                  date: new Date(),
+                },
               },
             },
-          },
-        );
+          );
 
-        return res.status(200).send({
-          message: "Book already exists. Quantity updated.",
-          updated: true,
-          updateResult,
+          return res.status(200).send({
+            message: "Book already exists. Quantity updated.",
+            updated: true,
+            updateResult,
+          });
+        }
+
+        //  If not exists > insert new book
+        const newBook = {
+          bookName: toLowerCaseBookName,
+          authorName: toLowerCaseAuthorName,
+          category,
+          description,
+          pages: Number(pages),
+          price: Number(price),
+          publish,
+          quantity: Number(quantity),
+          coverImg,
+          addedBy,
+          stockHistory: [
+            {
+              quantity: Number(quantity),
+              date: new Date(),
+            },
+          ],
+          createdAt: new Date(),
+        };
+
+        const result = await booksCollection.insertOne(newBook);
+
+        res.status(201).send({
+          message: "New book added successfully",
+          inserted: true,
+          result,
+        });
+      } catch (error) {
+        console.error("Add Book Error:", error);
+        res.status(500).send({
+          message: "Failed to add book",
+          error: error.message,
         });
       }
-
-      //  If not exists > insert new book
-      const newBook = {
-        bookName: toLowerCaseBookName,
-        authorName: toLowerCaseAuthorName,
-        category,
-        description,
-        pages: Number(pages),
-        price: Number(price),
-        publish,
-        quantity: Number(quantity),
-        coverImg,
-        addedBy,
-        stockHistory: [
-          {
-            quantity: Number(quantity),
-            date: new Date(),
-          },
-        ],
-        createdAt: new Date(),
-      };
-
-      const result = await booksCollection.insertOne(newBook);
-
-      res.status(201).send({
-        message: "New book added successfully",
-        inserted: true,
-        result,
-      });
-    } catch (error) {
-      console.error("Add Book Error:", error);
-      res.status(500).send({
-        message: "Failed to add book",
-        error: error.message,
-      });
-    }
-  });
-
-
+    });
 
     // GET : all books
     app.get("/all-books", async (req, res) => {
