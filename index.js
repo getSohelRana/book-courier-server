@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 //middleware
@@ -24,6 +25,7 @@ async function run() {
     const db = client.db("book_courier_db");
     const usersCollection = db.collection("users");
     const booksCollection = db.collection("books");
+    const ordersCollection = db.collection("orders");
     // POST : users api
     app.post("/users", async (req, res) => {
       try {
@@ -92,6 +94,22 @@ async function run() {
           message: "Something went wrong",
         });
       }
+    });
+
+    // PAYMENT ENDPOINT
+    app.post("/create-checkout-session", async (req, res) => {
+      const paymentInfo = req.body;
+      const session = await stripe.checkout.sessions.create({
+        line_items: [
+          {
+            // Provide the exact Price ID (for example, price_1234) of the product you want to sell
+            price: "{{PRICE_ID}}",
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${domain.com}?success=true`,
+      });
     });
 
     //GET : all users
@@ -244,7 +262,7 @@ async function run() {
     app.get("/all-books", async (req, res) => {
       try {
         const all_books_data = await booksCollection
-          .find()
+          .find({ publish: "Published" })
           .sort({ createdAt: -1 })
           .toArray();
         res.status(200).json({
@@ -260,6 +278,39 @@ async function run() {
         });
       }
     });
+
+    // ORDER : api goes here
+    app.post("/orders", async (req, res) => {
+      try {
+        const orderData = req.body;
+        const result = await ordersCollection.insertOne(orderData);
+        res.send({ success: true, insertedId: result.insertedId });
+      } catch (error) {
+        res.status(500).send({ success: false, message: "Order failed" });
+      }
+    });
+    //GET : get order api
+   app.get("/orders/:bookId", async (req, res) => {
+     try {
+       const bookId = req.params.bookId;
+
+       const reviews = await ordersCollection
+         .find({
+           bookId: bookId,
+           rating: { $exists: true },
+           comment: { $exists: true },
+         })
+         .toArray();
+
+       res.send({
+         success: true,
+         data: reviews,
+       });
+     } catch (error) {
+       res.status(500).send({ success: false });
+     }
+   });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
