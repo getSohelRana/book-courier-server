@@ -297,7 +297,11 @@ async function run() {
          { _id: existingOrder._id },
          {
            $inc: { quantity: 1 },
-           $set: { updatedAt: new Date() },
+           $set: {
+             rating: orderData.rating,
+             comment: orderData.comment,
+             updatedAt: new Date(),
+           },
          },
        );
 
