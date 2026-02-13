@@ -191,7 +191,7 @@ async function run() {
         const toLowerCaseBookName = bookName.trim().toLowerCase();
         const toLowerCaseAuthorName = authorName.trim().toLowerCase();
 
-        // 🔹 Check existing book
+        // Check existing book
         const existingBook = await booksCollection.findOne({
           bookName: toLowerCaseBookName,
           authorName: toLowerCaseAuthorName,
@@ -280,15 +280,69 @@ async function run() {
     });
 
     // ORDER : api goes here
-    app.post("/orders", async (req, res) => {
-      try {
-        const orderData = req.body;
-        const result = await ordersCollection.insertOne(orderData);
-        res.send({ success: true, insertedId: result.insertedId });
-      } catch (error) {
-        res.status(500).send({ success: false, message: "Order failed" });
-      }
-    });
+ app.post("/orders", async (req, res) => {
+   try {
+     const orderData = req.body;
+     const { bookId, customerEmail } = orderData;
+
+     // Check existing order
+     const existingOrder = await ordersCollection.findOne({
+       bookId,
+       customerEmail,
+     });
+
+     // If already ordered → increase quantity
+     if (existingOrder) {
+       await ordersCollection.updateOne(
+         { _id: existingOrder._id },
+         {
+           $inc: { quantity: 1 },
+           $set: { updatedAt: new Date() },
+         },
+       );
+
+       //decrease book stock
+       await booksCollection.updateOne(
+         { _id: new ObjectId(bookId) },
+         { $inc: { quantity: -1 } },
+       );
+
+       return res.status(200).send({
+         message: "Book already ordered. Quantity updated.",
+         updated: true,
+       });
+     }
+
+     // New order
+     const newOrder = {
+       ...orderData,
+       quantity: 1,
+       orderStatus: "pending",
+       paymentStatus: "unpaid",
+       createdAt: new Date(),
+     };
+
+     const result = await ordersCollection.insertOne(newOrder);
+
+     // decrease book stock
+     await booksCollection.updateOne(
+       { _id: new ObjectId(bookId) },
+       { $inc: { quantity: -1 } },
+     );
+
+     res.send({
+       success: true,
+       insertedId: result.insertedId,
+     });
+   } catch (error) {
+     res.status(500).send({
+       success: false,
+       message: "Order failed",
+     });
+   }
+ });
+
+
     //GET : get order api
    app.get("/orders/:bookId", async (req, res) => {
      try {
