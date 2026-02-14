@@ -352,6 +352,7 @@ async function run() {
         const email = req.query.email;
         const orders = await ordersCollection
           .find({ customerEmail: email })
+          .sort({ createdAt: -1 })
           .toArray();
         res.json(orders);
       } catch (error) {
@@ -380,6 +381,14 @@ async function run() {
       } catch (error) {
         res.status(500).send({ success: false });
       }
+    });
+    // DELETE : delete order by id
+    app.delete("/orders/:id", async (req, res) => {
+      const id = req.params.id; // use params instead of body
+      const result = await ordersCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
