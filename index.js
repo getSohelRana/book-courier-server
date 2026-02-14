@@ -280,94 +280,107 @@ async function run() {
     });
 
     // ORDER : api goes here
- app.post("/orders", async (req, res) => {
-   try {
-     const orderData = req.body;
-     const { bookId, customerEmail } = orderData;
+    app.post("/orders", async (req, res) => {
+      try {
+        const orderData = req.body;
+        const { bookId, customerEmail } = orderData;
 
-     // Check existing order
-     const existingOrder = await ordersCollection.findOne({
-       bookId,
-       customerEmail,
-     });
+        // Check existing order
+        const existingOrder = await ordersCollection.findOne({
+          bookId,
+          customerEmail,
+        });
 
-     // If already ordered → increase quantity
-     if (existingOrder) {
-       await ordersCollection.updateOne(
-         { _id: existingOrder._id },
-         {
-           $inc: { quantity: 1 },
-           $set: {
-             rating: orderData.rating,
-             comment: orderData.comment,
-             updatedAt: new Date(),
-           },
-         },
-       );
+        // If already ordered → increase quantity
+        if (existingOrder) {
+          await ordersCollection.updateOne(
+            { _id: existingOrder._id },
+            {
+              $inc: { quantity: 1 },
+              $set: {
+                rating: orderData.rating,
+                comment: orderData.comment,
+                updatedAt: new Date(),
+              },
+            },
+          );
 
-       //decrease book stock
-       await booksCollection.updateOne(
-         { _id: new ObjectId(bookId) },
-         { $inc: { quantity: -1 } },
-       );
+          //decrease book stock
+          await booksCollection.updateOne(
+            { _id: new ObjectId(bookId) },
+            { $inc: { quantity: -1 } },
+          );
 
-       return res.status(200).send({
-         message: "Book already ordered. Quantity updated.",
-         updated: true,
-       });
-     }
+          return res.status(200).send({
+            message: "Book already ordered. Quantity updated.",
+            updated: true,
+          });
+        }
 
-     // New order
-     const newOrder = {
-       ...orderData,
-       quantity: 1,
-       orderStatus: "pending",
-       paymentStatus: "unpaid",
-       createdAt: new Date(),
-     };
+        // New order
+        const newOrder = {
+          ...orderData,
+          quantity: 1,
+          orderStatus: "pending",
+          paymentStatus: "unpaid",
+          createdAt: new Date(),
+        };
 
-     const result = await ordersCollection.insertOne(newOrder);
+        const result = await ordersCollection.insertOne(newOrder);
 
-     // decrease book stock
-     await booksCollection.updateOne(
-       { _id: new ObjectId(bookId) },
-       { $inc: { quantity: -1 } },
-     );
+        // decrease book stock
+        await booksCollection.updateOne(
+          { _id: new ObjectId(bookId) },
+          { $inc: { quantity: -1 } },
+        );
 
-     res.send({
-       success: true,
-       insertedId: result.insertedId,
-     });
-   } catch (error) {
-     res.status(500).send({
-       success: false,
-       message: "Order failed",
-     });
-   }
- });
+        res.send({
+          success: true,
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: "Order failed",
+        });
+      }
+    });
 
+    // GET : get order by email
+    app.get("/my-order", async (req, res) => {
+      try {
+        const email = req.query.email;
+        const orders = await ordersCollection
+          .find({ customerEmail: email })
+          .toArray();
+        res.json(orders);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server Error" });
+      }
+    });
 
-    //GET : get order api
-   app.get("/orders/:bookId", async (req, res) => {
-     try {
-       const bookId = req.params.bookId;
+    //GET : get order by id
+    app.get("/orders/:bookId", async (req, res) => {
+      try {
+        const bookId = req.params.bookId;
 
-       const reviews = await ordersCollection
-         .find({
-           bookId: bookId,
-           rating: { $exists: true },
-           comment: { $exists: true },
-         })
-         .toArray();
+        const reviews = await ordersCollection
+          .find({
+            bookId: bookId,
+            rating: { $exists: true },
+            comment: { $exists: true },
+          })
+          .toArray();
 
-       res.send({
-         success: true,
-         data: reviews,
-       });
-     } catch (error) {
-       res.status(500).send({ success: false });
-     }
-   });
+        res.send({
+          success: true,
+          data: reviews,
+        });
+      } catch (error) {
+        res.status(500).send({ success: false });
+      }
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
