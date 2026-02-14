@@ -98,18 +98,41 @@ async function run() {
 
     // PAYMENT ENDPOINT
     app.post("/create-checkout-session", async (req, res) => {
-      const paymentInfo = req.body;
-      const session = await stripe.checkout.sessions.create({
-        line_items: [
-          {
-            // Provide the exact Price ID (for example, price_1234) of the product you want to sell
-            price: "{{PRICE_ID}}",
-            quantity: 1,
+      try {
+        const paymentInfo = req.body;
+
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ["card"],
+          mode: "payment",
+
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                unit_amount: paymentInfo.price * 100,
+                product_data: {
+                  name: `Your payment for "${paymentInfo.bookName}`,
+                },
+              },
+              quantity: 1,
+            },
+          ],
+
+          metadata: {
+            bookId: paymentInfo.bookId,
           },
-        ],
-        mode: "payment",
-        success_url: `${domain.com}?success=true`,
-      });
+
+          customer_email: paymentInfo.customerEmail,
+
+          success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+          cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+        });
+
+        res.send({ url: session.url });
+      } catch (error) {
+        console.log("STRIPE ERROR:", error.message);
+        res.status(500).send({ error: error.message });
+      }
     });
 
     //GET : all users
@@ -389,6 +412,23 @@ async function run() {
         _id: new ObjectId(id),
       });
       res.send(result);
+    });
+    // GET : get single data for payment
+    app.get("/payment/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const result = await ordersCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        if (!result) {
+          return res.status(404).send({ message: "Order not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ message: "Error retrieving order", error });
+      }
     });
 
     // Send a ping to confirm a successful connection
