@@ -111,7 +111,7 @@ async function run() {
                 currency: "usd",
                 unit_amount: paymentInfo.price * 100,
                 product_data: {
-                  name: `Your payment for "${paymentInfo.bookName}`,
+                  name: `Your payment for "${paymentInfo.bookName}" book`,
                 },
               },
               quantity: 1,
@@ -124,13 +124,40 @@ async function run() {
 
           customer_email: paymentInfo.customerEmail,
 
-          success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+          success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
         });
 
         res.send({ url: session.url });
       } catch (error) {
         console.log("STRIPE ERROR:", error.message);
+        res.status(500).send({ error: error.message });
+      }
+    });
+    // payment success
+    app.patch("/payment-success", async (req, res) => {
+      try {
+        const { session_id } = req.body;
+
+        if (!session_id)
+          return res.status(400).send({ message: "Session ID missing" });
+
+        // Retrieve session from Stripe
+        const session = await stripe.checkout.sessions.retrieve(session_id);
+
+        if (session.payment_status !== "paid") {
+          return res.status(400).send({ message: "Payment not completed" });
+        }
+
+        // Update order in MongoDB
+        await ordersCollection.updateOne(
+          { bookId: session.metadata.bookId }, // match bookId
+          { $set: { paymentStatus: "paid", orderStatus: "paid" } }, // set paid
+        );
+
+        res.send({ success: true, orderId: session.metadata.bookId });
+      } catch (error) {
+        console.error("Payment success error:", error);
         res.status(500).send({ error: error.message });
       }
     });
