@@ -130,9 +130,7 @@ async function run() {
               quantity: 1,
             },
           ],
-          metadata: { orderId: orderId.toString() ,
-            bookName : bookName,
-          },
+          metadata: { orderId: orderId.toString(), bookName: bookName },
           customer_email: customerEmail,
           success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
@@ -281,7 +279,13 @@ async function run() {
             .send({ success: false, message: "User not found", role: null });
         }
 
-        res.send({ success: true, role: user.role });
+        res.send({
+          success: true,
+          role: user.role,
+          name: user.name,
+          email: user.email,
+          photoURL: user.photoURL,
+        });
       } catch (error) {
         console.error(error);
         res.status(500).send({
