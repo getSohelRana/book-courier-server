@@ -130,7 +130,9 @@ async function run() {
               quantity: 1,
             },
           ],
-          metadata: { orderId: orderId.toString() },
+          metadata: { orderId: orderId.toString() ,
+            bookName : bookName,
+          },
           customer_email: customerEmail,
           success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
@@ -159,7 +161,7 @@ async function run() {
         if (!session || session.payment_status !== "paid") {
           return res.status(400).send({ error: "Payment not completed" });
         }
-
+        const bookName = session.metadata.bookName;
         const orderId = session.metadata?.orderId;
         if (!orderId)
           return res
@@ -195,6 +197,7 @@ async function run() {
 
         //Insert payment history
         const paymentHistory = {
+          bookName,
           orderId,
           price: session.amount_total / 100,
           currency: session.currency,
@@ -211,6 +214,23 @@ async function run() {
       } catch (error) {
         console.error("Payment success error:", error);
         res.status(500).send({ error: error.message });
+      }
+    });
+
+    // payment history
+    app.get("/payment-history", async (req, res) => {
+      try {
+        const email = req.query.email;
+
+        const payment_history = await paymentsCollection
+          .find({ customerEmail: email })
+          .sort({ paidAt: -1 })
+          .toArray();
+
+        res.json(payment_history);
+      } catch (error) {
+        console.error("Payment history fetch error:", error);
+        res.status(500).json({ message: "Server Error" });
       }
     });
 
