@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const generateTrackingId = require("./utils/generateTrackingId");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
@@ -26,6 +27,7 @@ async function run() {
     const usersCollection = db.collection("users");
     const booksCollection = db.collection("books");
     const ordersCollection = db.collection("orders");
+    const paymentsCollection = db.collection("payments");
     // POST : users api
     app.post("/users", async (req, res) => {
       try {
@@ -119,7 +121,7 @@ async function run() {
           ],
 
           metadata: {
-            bookId: paymentInfo.bookId,
+            orderId: String(paymentInfo.orderId), // use payment _id.
           },
 
           customer_email: paymentInfo.customerEmail,
@@ -134,28 +136,73 @@ async function run() {
         res.status(500).send({ error: error.message });
       }
     });
+
     // payment success
     app.patch("/payment-success", async (req, res) => {
       try {
         const { session_id } = req.body;
-
-        if (!session_id)
+        if (!session_id) {
           return res.status(400).send({ message: "Session ID missing" });
+        }
 
-        // Retrieve session from Stripe
+        // Get Stripe session
         const session = await stripe.checkout.sessions.retrieve(session_id);
 
         if (session.payment_status !== "paid") {
           return res.status(400).send({ message: "Payment not completed" });
         }
 
-        // Update order in MongoDB
-        await ordersCollection.updateOne(
-          { bookId: session.metadata.bookId }, // match bookId
-          { $set: { paymentStatus: "paid", orderStatus: "paid" } }, // set paid
+        // Get ORDER ID 
+        const orderId = session.metadata.orderId;
+
+        // Find order
+        const order = await ordersCollection.findOne({
+          _id: new ObjectId(orderId),
+        });
+        // console.log("Found Order:", order);
+
+        if (!order) {
+          console.log("Order not found in DB");
+          return res.status(404).send({ message: "Order not found" });
+        }
+
+        // 4️⃣ Generate tracking id
+        const trackingId = generateTrackingId();
+
+        // 5️⃣ Update order
+        const result = await ordersCollection.updateOne(
+          { _id: new ObjectId(orderId) },
+          {
+            $set: {
+              paymentStatus: "paid",
+              orderStatus: "paid",
+              trackingId,
+            },
+          },
         );
 
-        res.send({ success: true, orderId: session.metadata.bookId });
+        // console.log("Update Result:", result);
+
+        //Save payment history
+        const paymentHistory = {
+          price: session.amount_total / 100,
+          currency: session.currency,
+          customerEmail: session.customer_email,
+          orderId,
+          transactionId: session.payment_intent,
+          paymentStatus: session.payment_status,
+          trackingId,
+          paidAt: new Date(),
+        };
+
+        const paymentData = await paymentsCollection.insertOne(paymentHistory);
+
+        // console.log("Payment Saved:", paymentData);
+
+        res.send({
+          success: true,
+          trackingId,
+        });
       } catch (error) {
         console.error("Payment success error:", error);
         res.status(500).send({ error: error.message });
