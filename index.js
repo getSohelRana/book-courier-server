@@ -101,38 +101,44 @@ async function run() {
     // PAYMENT ENDPOINT
     app.post("/create-checkout-session", async (req, res) => {
       try {
-        const paymentInfo = req.body;
+        const { orderId, price, bookName, customerEmail } = req.body;
 
+        const order = await ordersCollection.findOne({
+          _id: new ObjectId(orderId),
+        });
+
+        if (!order) {
+          return res.status(404).send({ error: "Order not found" });
+        }
+
+        // Duplicate payment check
+        if (order.paymentStatus === "paid") {
+          return res.status(400).send({ error: "Order already paid" });
+        }
+
+        // Create Stripe session
         const session = await stripe.checkout.sessions.create({
           payment_method_types: ["card"],
           mode: "payment",
-
           line_items: [
             {
               price_data: {
                 currency: "usd",
-                unit_amount: paymentInfo.price * 100,
-                product_data: {
-                  name: `Your payment for "${paymentInfo.bookName}" book`,
-                },
+                unit_amount: price * 100,
+                product_data: { name: `Payment for "${bookName}"` },
               },
               quantity: 1,
             },
           ],
-
-          metadata: {
-            orderId: String(paymentInfo.orderId), // use payment _id.
-          },
-
-          customer_email: paymentInfo.customerEmail,
-
+          metadata: { orderId: orderId.toString() },
+          customer_email: customerEmail,
           success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
         });
 
         res.send({ url: session.url });
       } catch (error) {
-        console.log("STRIPE ERROR:", error.message);
+        console.error("Stripe session error:", error.message);
         res.status(500).send({ error: error.message });
       }
     });
@@ -141,68 +147,67 @@ async function run() {
     app.patch("/payment-success", async (req, res) => {
       try {
         const { session_id } = req.body;
+
+        //Validate input
         if (!session_id) {
-          return res.status(400).send({ message: "Session ID missing" });
+          return res.status(400).send({ error: "Session ID missing" });
         }
 
-        // Get Stripe session
+        //Retrieve Stripe session
         const session = await stripe.checkout.sessions.retrieve(session_id);
 
-        if (session.payment_status !== "paid") {
-          return res.status(400).send({ message: "Payment not completed" });
+        if (!session || session.payment_status !== "paid") {
+          return res.status(400).send({ error: "Payment not completed" });
         }
 
-        // Get ORDER ID 
-        const orderId = session.metadata.orderId;
+        const orderId = session.metadata?.orderId;
+        if (!orderId)
+          return res
+            .status(400)
+            .send({ error: "Order ID missing in metadata" });
 
-        // Find order
+        // Fetch order
         const order = await ordersCollection.findOne({
           _id: new ObjectId(orderId),
         });
-        // console.log("Found Order:", order);
+        if (!order) return res.status(404).send({ error: "Order not found" });
 
-        if (!order) {
-          console.log("Order not found in DB");
-          return res.status(404).send({ message: "Order not found" });
+        // Duplicate payment check
+        if (order.paymentStatus === "paid") {
+          return res.status(400).send({ error: "Payment already processed" });
         }
 
-        // 4️⃣ Generate tracking id
+        //Generate tracking id
         const trackingId = generateTrackingId();
 
-        // 5️⃣ Update order
-        const result = await ordersCollection.updateOne(
+        //Update order
+        await ordersCollection.updateOne(
           { _id: new ObjectId(orderId) },
           {
             $set: {
               paymentStatus: "paid",
               orderStatus: "paid",
               trackingId,
+              updatedAt: new Date(),
             },
           },
         );
 
-        // console.log("Update Result:", result);
-
-        //Save payment history
+        //Insert payment history
         const paymentHistory = {
+          orderId,
           price: session.amount_total / 100,
           currency: session.currency,
           customerEmail: session.customer_email,
-          orderId,
           transactionId: session.payment_intent,
           paymentStatus: session.payment_status,
           trackingId,
           paidAt: new Date(),
         };
 
-        const paymentData = await paymentsCollection.insertOne(paymentHistory);
+        await paymentsCollection.insertOne(paymentHistory);
 
-        // console.log("Payment Saved:", paymentData);
-
-        res.send({
-          success: true,
-          trackingId,
-        });
+        res.send({ success: true, trackingId });
       } catch (error) {
         console.error("Payment success error:", error);
         res.status(500).send({ error: error.message });
