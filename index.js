@@ -70,7 +70,41 @@ async function run() {
         });
       }
     });
+    // PATCH : update user
+    app.patch("/users", async (req, res) => {
+      try {
+        const { name, email, photoURL } = req.body;
+        //check email
+        if (!email) {
+          return res.status(400).send({
+            success: false,
+            message: "Email is required",
+          });
+        }
 
+        // update profile
+        const result = await usersCollection.updateOne(
+          { email }, //update this user name and photo
+          {
+            $set: {
+              name: name,
+              photoURL: photoURL,
+            },
+          },
+        );
+        res.send({
+          success: true,
+          message: "Profile updated successfully",
+          modifiedCount: result.modifiedCount,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({
+          success: false,
+          message: "Update failed",
+        });
+      }
+    });
     // get single books by id
     app.get("/book-details/:id", async (req, res) => {
       try {
