@@ -460,13 +460,20 @@ async function run() {
       }
     });
 
-    // GET : get single book
+    // PATCH : update  book
     app.patch("/all-books/:id", async (req, res) => {
       try {
         const id = req.params.id;
 
-        const { bookName, author, category, description, pages, price, quantity, coverImg, publish } =
-        req.body;
+        const {
+          bookName,
+          author,
+          category,
+          description,
+          price,
+          quantity,
+          publish,
+        } = req.body;
 
         const updateBook = {
           $set: {
@@ -474,10 +481,8 @@ async function run() {
             ...(author && { author }),
             ...(category && { category }),
             ...(description && { description }),
-            ...(pages && { pages }),
             ...(price && { price }),
             ...(quantity && { quantity }),
-            ...(coverImg && { coverImg }),
             ...(publish && { publish }),
             updatedAt: new Date(),
           },
@@ -498,6 +503,26 @@ async function run() {
         res.status(500).send({
           success: false,
           message: "Update failed",
+        });
+      }
+    });
+
+    // GET : get single book by id
+    app.get("/all-books/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const book = await booksCollection.findOne({ _id: new ObjectId(id) });
+
+        res.send({
+          success: true,
+          data: book,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to fetch book",
         });
       }
     });
