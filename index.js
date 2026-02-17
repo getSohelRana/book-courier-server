@@ -439,6 +439,24 @@ async function run() {
       }
     });
 
+    // GET : librarian own added books
+    app.get("/my-books", async (req, res) => {
+      try{
+        const email = req.query.email;
+      if (!email) {
+        return res.status(400).send({ message: "Email required" });
+      }
+      const result = await booksCollection.find({ "addedBy.email" : email}).toArray();
+        res.send({
+          success: true,
+          data: result,
+        });
+      } catch(error){
+        res.status(500).send({
+          message : "Internal server error"
+        })
+      }
+    });
     // ORDER : api goes here
     app.post("/orders", async (req, res) => {
       try {
