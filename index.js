@@ -441,22 +441,67 @@ async function run() {
 
     // GET : librarian own added books
     app.get("/my-books", async (req, res) => {
-      try{
+      try {
         const email = req.query.email;
-      if (!email) {
-        return res.status(400).send({ message: "Email required" });
-      }
-      const result = await booksCollection.find({ "addedBy.email" : email}).toArray();
+        if (!email) {
+          return res.status(400).send({ message: "Email required" });
+        }
+        const result = await booksCollection
+          .find({ "addedBy.email": email })
+          .toArray();
         res.send({
           success: true,
           data: result,
         });
-      } catch(error){
+      } catch (error) {
         res.status(500).send({
-          message : "Internal server error"
-        })
+          message: "Internal server error",
+        });
       }
     });
+
+    // GET : get single book
+    app.patch("/all-books/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const { bookName, author, category, description, pages, price, quantity, coverImg, publish } =
+        req.body;
+
+        const updateBook = {
+          $set: {
+            ...(bookName && { bookName }),
+            ...(author && { author }),
+            ...(category && { category }),
+            ...(description && { description }),
+            ...(pages && { pages }),
+            ...(price && { price }),
+            ...(quantity && { quantity }),
+            ...(coverImg && { coverImg }),
+            ...(publish && { publish }),
+            updatedAt: new Date(),
+          },
+        };
+
+        const result = await booksCollection.updateOne(
+          { _id: new ObjectId(id) },
+          updateBook,
+        );
+
+        res.send({
+          success: true,
+          modifiedCount: result.modifiedCount,
+          message: "Book updated successfully",
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({
+          success: false,
+          message: "Update failed",
+        });
+      }
+    });
+
     // ORDER : api goes here
     app.post("/orders", async (req, res) => {
       try {
