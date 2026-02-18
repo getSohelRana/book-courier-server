@@ -299,58 +299,78 @@ async function run() {
     });
 
     //make librarian api
-    app.patch("/users/librarian/:id", async (req, res) => {
-      const id = req.params.id;
-      const result = await usersCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: { role: "librarian" } },
-      );
-      res.send(result);
-    });
+    // app.patch("/users/librarian/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   const result = await usersCollection.updateOne(
+    //     { _id: new ObjectId(id) },
+    //     { $set: { role: "librarian" } },
+    //   );
+    //   res.send(result);
+    // });
 
     // make user api
-    app.patch("/users/user/:id", async (req, res) => {
-      const id = req.params.id;
+    // app.patch("/users/user/:id", async (req, res) => {
+    //   const id = req.params.id;
 
-      const result = await usersCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: { role: "user" } },
-      );
-      res.send(result);
-    });
+    //   const result = await usersCollection.updateOne(
+    //     { _id: new ObjectId(id) },
+    //     { $set: { role: "user" } },
+    //   );
+    //   res.send(result);
+    // });
 
     // Get all  users by role base
-    app.get("/users/role/:email", async (req, res) => {
+    // app.get("/users/role/:email", async (req, res) => {
+    //   try {
+    //     const email = req.params.email;
+    //     if (!email) {
+    //       return res
+    //         .status(400)
+    //         .send({ success: false, message: "Email is required" });
+    //     }
+
+    //     const user = await usersCollection.findOne({ email });
+
+    //     if (!user) {
+    //       return res
+    //         .status(404)
+    //         .send({ success: false, message: "User not found", role: null });
+    //     }
+
+    //     res.send({
+    //       success: true,
+    //       role: user.role,
+    //       name: user.name,
+    //       email: user.email,
+    //       photoURL: user.photoURL,
+    //     });
+    //   } catch (error) {
+    //     console.error(error);
+    //     res.status(500).send({
+    //       success: false,
+    //       message: "Failed to fetch user role",
+    //       role: null,
+    //     });
+    //   }
+    // });
+
+    //  user role update api
+    app.patch("/users/role/:id", async (req, res) => {
       try {
-        const email = req.params.email;
-        if (!email) {
-          return res
-            .status(400)
-            .send({ success: false, message: "Email is required" });
-        }
+        const id = req.params.id;
+        const { role } = req.body;
 
-        const user = await usersCollection.findOne({ email });
-
-        if (!user) {
-          return res
-            .status(404)
-            .send({ success: false, message: "User not found", role: null });
-        }
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { role } },
+        );
 
         res.send({
           success: true,
-          role: user.role,
-          name: user.name,
-          email: user.email,
-          photoURL: user.photoURL,
+          modifiedCount: result.modifiedCount,
         });
       } catch (error) {
-        console.error(error);
-        res.status(500).send({
-          success: false,
-          message: "Failed to fetch user role",
-          role: null,
-        });
+        res.status(500).send({ message: "Role update failed" });
       }
     });
 
