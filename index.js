@@ -307,6 +307,18 @@ async function run() {
       );
       res.send(result);
     });
+
+    // make user api
+    app.patch("/users/user/:id", async (req, res) => {
+      const id = req.params.id;
+
+      const result = await usersCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { role: "user" } },
+      );
+      res.send(result);
+    });
+
     // Get all  users by role base
     app.get("/users/role/:email", async (req, res) => {
       try {
