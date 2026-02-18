@@ -105,6 +105,18 @@ async function run() {
         });
       }
     });
+
+    // get all users
+    app.get("/users", async (req, res) => {
+      try {
+        const users = await usersCollection.find().toArray();
+        res.json(users);
+      } catch (error) {
+        console.error("Users fetch error:", error);
+        res.status(500).json({ message: "Server Error" });
+      }
+    });
+
     // get single books by id
     app.get("/book-details/:id", async (req, res) => {
       try {
