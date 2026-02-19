@@ -643,7 +643,7 @@ async function run() {
       try {
         const email = req.query.email;
         const orders = await ordersCollection
-          .find({ addedBy: email })
+          .find({ customerEmail: email })
           .sort({ createdAt: -1 })
           .toArray();
         res.json(orders);
@@ -676,7 +676,7 @@ async function run() {
     });
     // DELETE : delete order by id
     app.delete("/orders/:id", async (req, res) => {
-      const id = req.params.id; // use params instead of body
+      const id = req.params.id;
       const result = await ordersCollection.deleteOne({
         _id: new ObjectId(id),
       });
@@ -720,6 +720,43 @@ async function run() {
         });
       }
     });
+
+    // DELETE: Admin delete book + related orders
+    app.delete("/books/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        if (!id) {
+          return res.status(400).send({ message: "Book ID is required" });
+        }
+
+        const bookId = new ObjectId(id);
+
+        // Delete orders 
+        const orderDeleteResult = await ordersCollection.deleteMany({
+          bookId: id,
+        });
+
+        //Delete the book
+        const bookDeleteResult = await booksCollection.deleteOne({
+          _id: bookId,
+        });
+
+        if (bookDeleteResult.deletedCount === 0) {
+          return res.status(404).send({ message: "Book not found" });
+        }
+
+        res.send({
+          success: true,
+          message: "Book and related orders deleted successfully",
+          deletedOrders: orderDeleteResult.deletedCount,
+        });
+      } catch (error) {
+        console.error("Delete error:", error);
+        res.status(500).send({ message: "Server error" });
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
