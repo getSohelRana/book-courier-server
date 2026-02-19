@@ -643,7 +643,7 @@ async function run() {
       try {
         const email = req.query.email;
         const orders = await ordersCollection
-          .find({ customerEmail: email })
+          .find({ addedBy: email })
           .sort({ createdAt: -1 })
           .toArray();
         res.json(orders);
