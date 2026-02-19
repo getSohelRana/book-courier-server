@@ -700,6 +700,26 @@ async function run() {
       }
     });
 
+    // GET : get all books admin dashboard
+    app.get("/book-collection", async (req, res) => {
+      try {
+        const books_data = await booksCollection
+          .find()
+          .sort({ createdAt: -1 })
+          .toArray();
+        res.status(200).json({
+          success: true,
+          data: books_data,
+        });
+      } catch (error) {
+        console.log(error);
+        res.status(500).json({
+          success: false,
+          message: "Fail to fetch books",
+          error: error.message,
+        });
+      }
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
