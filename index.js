@@ -320,39 +320,39 @@ async function run() {
     // });
 
     // Get all  users by role base
-    // app.get("/users/role/:email", async (req, res) => {
-    //   try {
-    //     const email = req.params.email;
-    //     if (!email) {
-    //       return res
-    //         .status(400)
-    //         .send({ success: false, message: "Email is required" });
-    //     }
+    app.get("/users/role/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+        if (!email) {
+          return res
+            .status(400)
+            .send({ success: false, message: "Email is required" });
+        }
 
-    //     const user = await usersCollection.findOne({ email });
+        const user = await usersCollection.findOne({ email });
 
-    //     if (!user) {
-    //       return res
-    //         .status(404)
-    //         .send({ success: false, message: "User not found", role: null });
-    //     }
+        if (!user) {
+          return res
+            .status(404)
+            .send({ success: false, message: "User not found", role: null });
+        }
 
-    //     res.send({
-    //       success: true,
-    //       role: user.role,
-    //       name: user.name,
-    //       email: user.email,
-    //       photoURL: user.photoURL,
-    //     });
-    //   } catch (error) {
-    //     console.error(error);
-    //     res.status(500).send({
-    //       success: false,
-    //       message: "Failed to fetch user role",
-    //       role: null,
-    //     });
-    //   }
-    // });
+        res.send({
+          success: true,
+          role: user.role,
+          name: user.name,
+          email: user.email,
+          photoURL: user.photoURL,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to fetch user role",
+          role: null,
+        });
+      }
+    });
 
     //  user role update api
     app.patch("/users/role/:id", async (req, res) => {
