@@ -106,17 +106,6 @@ async function run() {
       }
     });
 
-    // get all users
-    app.get("/users", async (req, res) => {
-      try {
-        const users = await usersCollection.find().toArray();
-        res.json(users);
-      } catch (error) {
-        console.error("Users fetch error:", error);
-        res.status(500).json({ message: "Server Error" });
-      }
-    });
-
     // get single books by id
     app.get("/book-details/:id", async (req, res) => {
       try {
@@ -281,7 +270,10 @@ async function run() {
     //GET : all users
     app.get("/users", async (req, res) => {
       try {
-        const users = await usersCollection.find().toArray();
+        const users = await usersCollection
+          .find()
+          .sort({ createdAt : -1})
+          .toArray();
         res.send(users);
       } catch (error) {
         res.status(500).send({ message: "Failed to get users" });
@@ -663,7 +655,7 @@ async function run() {
             bookId: bookId,
             rating: { $exists: true },
             comment: { $exists: true },
-          })
+          }).sort({createdAt : -1})
           .toArray();
 
         res.send({
