@@ -28,6 +28,7 @@ async function run() {
     const booksCollection = db.collection("books");
     const ordersCollection = db.collection("orders");
     const paymentsCollection = db.collection("payments");
+    const wishlistsCollection = db.collection("wishlists");
     // POST : users api
     app.post("/users", async (req, res) => {
       try {
@@ -272,7 +273,7 @@ async function run() {
       try {
         const users = await usersCollection
           .find()
-          .sort({ createdAt : -1})
+          .sort({ createdAt: -1 })
           .toArray();
         res.send(users);
       } catch (error) {
@@ -655,7 +656,8 @@ async function run() {
             bookId: bookId,
             rating: { $exists: true },
             comment: { $exists: true },
-          }).sort({createdAt : -1})
+          })
+          .sort({ createdAt: -1 })
           .toArray();
 
         res.send({
@@ -770,6 +772,41 @@ async function run() {
       }
     });
 
+    //wishlist api goes here
+    app.post("/wishlist", async (req, res) => {
+      try {
+        const wishlistData = req.body;
+        const { userEmail, bookId } = wishlistData;
+
+        //duplicate check (same user + same book)
+        const existingWishlist = await wishlistsCollection.findOne({
+          userEmail,
+          bookId,
+        });
+
+        if (existingWishlist) {
+          return res.status(409).send({
+            success: false,
+            message: "Book already added to wishlist",
+          });
+        }
+
+        //insert wishlist
+        const result = await wishlistsCollection.insertOne(wishlistData);
+
+        res.send({
+          success: true,
+          insertedId: result.insertedId,
+          message: "Book added to wishlist successfully",
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({
+          success: false,
+          message: "Wishlist failed",
+        });
+      }
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
