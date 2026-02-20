@@ -732,7 +732,7 @@ async function run() {
 
         const bookId = new ObjectId(id);
 
-        // Delete orders 
+        // Delete orders
         const orderDeleteResult = await ordersCollection.deleteMany({
           bookId: id,
         });
@@ -752,8 +752,29 @@ async function run() {
           deletedOrders: orderDeleteResult.deletedCount,
         });
       } catch (error) {
-        console.error("Delete error:", error);
+        // console.error("Delete error:", error);
         res.status(500).send({ message: "Server error" });
+      }
+    });
+
+    //  publish status change api
+    app.patch("/book-publish/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { publish } = req.body;
+
+        const result = await booksCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { publish } },
+        );
+
+        res.send({
+          success: true,
+          modifiedCount: result.modifiedCount,
+          message: "Publish status updated successfully",
+        });
+      } catch (error) {
+        res.status(500).send({ success: false, message: "Server error" });
       }
     });
 
