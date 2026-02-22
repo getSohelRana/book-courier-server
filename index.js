@@ -641,7 +641,7 @@ async function run() {
           .toArray();
         res.json(orders);
       } catch (error) {
-        console.error(error);
+        // console.error(error);
         res.status(500).json({ message: "Server Error" });
       }
     });
@@ -807,6 +807,22 @@ async function run() {
         });
       }
     });
+
+    // GET: wishlist
+    app.get("/wishlist-details", async (req, res)=>{
+      try {
+        const email = req.query.email;
+        const result = await wishlistsCollection
+          .find({ userEmail: email })
+          .sort({ createdAt: -1 })
+          .toArray();
+        res.json(result);
+      } catch (error) {
+        // console.error(error);
+        res.status(500).json({ message: "Server Error" });
+      }
+
+    })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
