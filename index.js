@@ -861,10 +861,10 @@ async function run() {
             bookName: { $regex: search, $options: "i" },
           })
           .toArray();
-          
+
         res.status(200).send({
           success: true,
-          message: "seacrch result fetched successfully",
+          message: "search result fetched successfully",
           data: result,
         });
       } catch (error) {
@@ -872,6 +872,36 @@ async function run() {
           success: false,
           message: "Seacrch failed",
           error,
+        });
+      }
+    });
+
+    //SORT : sort by price api
+    app.get("/sort", async (req, res) => {
+      try {
+        const sort = req.query.sort;
+
+        let sortValue = { price: 1 }; // default asc
+
+        if (sort === "asc") {
+          sortValue = { price: 1 };
+        } else if (sort === "desc") {
+          sortValue = { price: -1 };
+        }
+
+        const result = await booksCollection
+          .aggregate([{ $sort: sortValue }])
+          .toArray();
+
+        res.status(200).send({
+          success: true,
+          data: result,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: "Sort failed",
+          error: error.message,
         });
       }
     });
