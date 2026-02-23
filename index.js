@@ -809,7 +809,7 @@ async function run() {
     });
 
     // GET: wishlist
-    app.get("/wishlist-details", async (req, res)=>{
+    app.get("/wishlist-details", async (req, res) => {
       try {
         const email = req.query.email;
         const result = await wishlistsCollection
@@ -821,29 +821,60 @@ async function run() {
         // console.error(error);
         res.status(500).json({ message: "Server Error" });
       }
+    });
 
-    })
-    
     //DELETE : remove wishlist items api
     app.delete("/wishlist/:id", async (req, res) => {
-      try{
+      try {
         const id = req.params.id;
 
         const result = await wishlistsCollection.deleteOne({
-          _id : new ObjectId(id)
-        })
+          _id: new ObjectId(id),
+        });
         res.status(201).send({
           success: true,
           message: "Wishlist remove successfully",
           deletedCount: result.deletedCount,
         });
-      } catch(error){
+      } catch (error) {
         res.status(501).send({
-          success : false,
-          message : "Internal server error"
-        })
+          success: false,
+          message: "Internal server error",
+        });
       }
-    })
+    });
+
+    //Search : search by book name api
+    app.get("/search", async (req, res) => {
+      try {
+        const search = req.query.search;
+
+        if (!search) {
+          return res.status(400).send({
+            success: false,
+            message: "Search query is required",
+          });
+        }
+
+        const result = await booksCollection
+          .find({
+            bookName: { $regex: search, $options: "i" },
+          })
+          .toArray();
+          
+        res.status(200).send({
+          success: true,
+          message: "seacrch result fetched successfully",
+          data: result,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: "Seacrch failed",
+          error,
+        });
+      }
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
