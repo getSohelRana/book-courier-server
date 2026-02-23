@@ -823,6 +823,27 @@ async function run() {
       }
 
     })
+    
+    //DELETE : remove wishlist items api
+    app.delete("/wishlist/:id", async (req, res) => {
+      try{
+        const id = req.params.id;
+
+        const result = await wishlistsCollection.deleteOne({
+          _id : new ObjectId(id)
+        })
+        res.status(201).send({
+          success: true,
+          message: "Wishlist remove successfully",
+          deletedCount: result.deletedCount,
+        });
+      } catch(error){
+        res.status(501).send({
+          success : false,
+          message : "Internal server error"
+        })
+      }
+    })
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
